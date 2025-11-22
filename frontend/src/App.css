@@ -1,5 +1,6 @@
 #root {
-  max-width: 1280px;
+  min-width: 100vw;
+  min-height: 150vh;
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
@@ -39,4 +40,57 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* Add to src/App.css */
+/* Smooth transitions for analyzer panel */
+.analyzer-panel-enter {
+  transform: translateX(100%);
+}
+
+.analyzer-panel-enter-active {
+  transform: translateX(0);
+  transition: transform 300ms ease-in-out;
+}
+
+.analyzer-panel-exit {
+  transform: translateX(0);
+}
+
+.analyzer-panel-exit-active {
+  transform: translateX(100%);
+  transition: transform 300ms ease-in-out;
+}
+
+/* Custom scrollbar for analyzer */
+.analyzer-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.analyzer-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.analyzer-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.analyzer-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Color picker styles */
+.react-colorful {
+  width: 100% !important;
+  height: 200px !important;
+}
+
+.react-colorful__saturation {
+  border-radius: 8px 8px 0 0;
+}
+
+.react-colorful__hue {
+  border-radius: 0 0 8px 8px;
 }

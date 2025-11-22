@@ -1,9 +1,9 @@
-import React,{ useEffect } from "react"
+import { useEffect, useState} from "react"
 import RunAllocationBtn from "../components/RunAllocateBtn"
 import { getAllocation, getExport } from "../api/allocation"
 
 export default function AllocationPage() {
-    const [alloc, setAlloc] = React.useState([])
+    const [alloc, setAlloc] = useState([])
 
     const fetchAlloc = async () => {
         const res = await getAllocation()

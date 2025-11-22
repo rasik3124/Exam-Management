@@ -12,7 +12,8 @@ export default function RoomsPage(){
     }
 
     useEffect(() => {fetchRooms()},[])
-
+      document.body.style.background = "linear-gradient(135deg, #0d233aff 5%, #6911a4ff 50%, #e0f7ff 100%)";
+      document.body.style.backgroundAttachment = "fixed";
     return (
         <div className="container">
       <h2>Rooms</h2>

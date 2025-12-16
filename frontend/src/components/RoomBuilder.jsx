@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { gsap } from 'gsap';
 import ControlPanel from './ControlPanel/ControlPanel';
 import VisualRoom from './VisualRoom/VisualRoom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
 /**
  * Main RoomBuilder component that orchestrates the entire room building interface
@@ -10,6 +11,11 @@ import VisualRoom from './VisualRoom/VisualRoom';
  */
 const RoomBuilder = () => {
   // Room configuration state
+  const { examId } = useParams()
+  const [ params ] = useSearchParams()
+  const editRoomId = params.get("edit")
+  const storageKey_RB = `roomBuilder_${examId}`
+  const storageKey = `rooms_${examId}`
   const [roomConfig, setRoomConfig] = useState({
     roomName: '',
     rows: 4,
@@ -29,7 +35,7 @@ const RoomBuilder = () => {
 
   // Initialize from localStorage on mount
   useEffect(() => {
-    const savedLayout = localStorage.getItem('roomBuilderLayout');
+    const savedLayout = localStorage.getItem(storageKey_RB);
     if (savedLayout) {
       try {
         const { roomConfig: savedConfig, benches: savedBenches, nextId } = JSON.parse(savedLayout);
@@ -44,13 +50,31 @@ const RoomBuilder = () => {
 
   // Save to localStorage when layout changes
   useEffect(() => {
-    const layoutData = {
-      roomConfig,
-      benches,
-      nextId: nextBenchId
-    };
-    localStorage.setItem('roomBuilderLayout', JSON.stringify(layoutData));
-  }, [roomConfig, benches, nextBenchId]);
+      const layoutData = {
+        roomConfig,
+        benches,
+        nextId: nextBenchId
+      };
+      localStorage.setItem(storageKey_RB, JSON.stringify(layoutData));
+    }, [roomConfig, benches, nextBenchId]);
+
+    //Edit Room
+    useEffect(() => {
+    if (!editRoomId) return;
+
+    const rooms = JSON.parse(localStorage.getItem(storageKey) || "[]");
+    const room = rooms.find(r => r.id === editRoomId);
+
+    if (!room) {
+      alert("⚠️ Room not found");
+      return;
+    }
+
+    setRoomConfig(room.layout.roomConfig);
+    setBenches(room.layout.benches);
+    setNextBenchId(room.layout.benches.length + 1);
+
+  }, [editRoomId, storageKey]);
 
   /**
    * Add a new bench to the next available grid slot
@@ -142,23 +166,53 @@ const RoomBuilder = () => {
   /**
    * Export current layout as JSON file
    */
-  const exportLayout = useCallback(() => {
-    const layoutData = {
+  const exportToJSON = useCallback(() => {
+    const data = {
       roomConfig,
       benches,
       exportedAt: new Date().toISOString()
     };
 
-    const dataStr = JSON.stringify(layoutData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(dataBlob);
-    link.download = `${roomConfig.roomName || 'room'}-layout.json`;
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const link = document.createElement("a");
+
+    link.href = URL.createObjectURL(blob);
+    link.download = `${roomConfig.roomName || "room"}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }, [roomConfig, benches]);
+  },[roomConfig, benches]);
+
+  const saveRoomToSession = useCallback(() => {
+    if (!roomConfig.roomName.trim()) {
+      alert("⚠️ Enter room name");
+      return;
+    }
+
+    const roomId = editRoomId || Date.now().toString();
+
+    const room = {
+      id: roomId,
+      name: roomConfig.roomName,
+      capacity: benches.length * roomConfig.benchCapacity,
+      layout: {
+        roomConfig,
+        benches
+      },
+      updatedAt: new Date().toISOString()
+    };
+
+    const existing = JSON.parse(localStorage.getItem(storageKey) || "[]");
+
+    const updated = editRoomId
+      ? existing.map(r => (r.id === roomId ? room : r))
+      : [...existing, room];
+
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+
+    alert("✅ Room saved successfully!");
+
+  }, [roomConfig, benches, editRoomId, storageKey]);
 
   return (
     <div className=" min-w-screen flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden">
@@ -173,10 +227,12 @@ const RoomBuilder = () => {
         onRowsColsChange={setRowsCols}
         onAddBench={addBench}
         onResetScene={resetScene}
-        onExportLayout={exportLayout}
+        onSaveSession={saveRoomToSession}
+        onExportJSON={exportToJSON}
         isExpanded={isPanelExpanded}
         onToggleExpand={() => setIsPanelExpanded(!isPanelExpanded)}
       />
+
       
       <VisualRoom
         roomConfig={roomConfig}
@@ -184,6 +240,7 @@ const RoomBuilder = () => {
         onAddBench={addBench}
         onRemoveBench={removeBench}
         isPanelExpanded={isPanelExpanded}
+        mode="builder"
       />
     </div>
   );

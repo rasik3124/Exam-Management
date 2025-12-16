@@ -33,7 +33,7 @@ export default function Navbar() {
   };
 
   const navItems = [
-    { path: "/", label: "Dashboard", icon: Home },
+    { path: "/dashboard", label: "Dashboard", icon: Home },
     { path: "/rooms", label: "Rooms", icon: Building },
     { path: "/allocate", label: "Allocate", icon: Settings },
   ];

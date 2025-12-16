@@ -8,10 +8,12 @@ import { useModelLoader } from '../../hooks/useModelLoader';
 /**
  * Enhanced bench entity with 3D chair models
  */
-const BenchEntity = ({ bench, rows, cols, onRemove }) => {
+const BenchEntity = ({ bench, rows, cols, onRemove, mode = "builder" }) => {
   const groupRef = useRef();
   const [isHovered, setIsHovered] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const isPreview = mode === "preview";
+
 
   // Load chair model
   const { model: chairModel, loading: chairLoading, error: chairError } = 
@@ -87,15 +89,19 @@ const BenchEntity = ({ bench, rows, cols, onRemove }) => {
     <group 
       ref={groupRef}
       position={[x, 0, z]}
+      pointerEvents={isPreview ? "none" : "auto"}   // ✅ disables all hover + click in preview
       onPointerEnter={() => {
+        if (isPreview) return;
         setIsHovered(true);
         setShowControls(true);
       }}
       onPointerLeave={() => {
+        if (isPreview) return;
         setIsHovered(false);
         setTimeout(() => setShowControls(false), 1000);
       }}
     >
+
       {/* Bench Structure */}
       <BenchStructure scale={benchScale} isHovered={isHovered} />
       

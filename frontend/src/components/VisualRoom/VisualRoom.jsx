@@ -1,6 +1,6 @@
 // src/components/VisualRoom/VisualRoom.jsx
-import React, { Suspense, useState, useRef } from 'react';
-import { Canvas } from '@react-three/fiber';
+import React, { Suspense, useState, useRef, useEffect } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment, Sky, Sparkles, Html } from '@react-three/drei';
 import BenchEntity from './BenchEntity';
 import EnhancedGround from './EnhancedGround';
@@ -51,49 +51,77 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// helper: camera presets
+const getCameraPreset = (view) => {
+  const presets = {
+    overhead: { position: [0, 10, 0], fov: 50 },
+    side:     { position: [10, 4, 0], fov: 50 },
+    corner:   { position: [8, 5, 8],  fov: 45 },
+    front:    { position: [0, 5, 10], fov: 50 },
+  };
+  return presets[view] || presets.overhead;
+};
+
+// this runs inside Canvas to actually update camera when view changes
+const CameraRig = ({ cameraView }) => {
+  const { camera } = useThree();
+
+  useEffect(() => {
+    const preset = getCameraPreset(cameraView);
+    camera.position.set(
+      preset.position[0],
+      preset.position[1],
+      preset.position[2]
+    );
+    camera.fov = preset.fov;
+    camera.updateProjectionMatrix();
+  }, [cameraView, camera]);
+
+  return null;
+};
+
 /**
  * Enhanced visual room with improved environment and layout
  */
-const VisualRoom = ({ roomConfig, benches, onAddBench, onRemoveBench, isPanelExpanded }) => {
+const VisualRoom = ({
+  roomConfig,
+  benches,
+  onAddBench,
+  onRemoveBench,
+  isPanelExpanded,
+  mode = 'builder', // "builder" or "preview"
+}) => {
   const [cameraView, setCameraView] = useState('overhead');
+  const [autoOrbit, setAutoOrbit] = useState(false);
   const canvasRef = useRef();
   const [sceneError, setSceneError] = useState(null);
 
-  const canAddBench = roomConfig.roomName && benches.length < (roomConfig.rows * roomConfig.cols);
+  const isPreview = mode === 'preview';
+  const canAddBench =
+    !isPreview && roomConfig.roomName && benches.length < (roomConfig.rows * roomConfig.cols);
 
-  // Camera presets based on view
-  const getCameraPreset = () => {
-    const presets = {
-      overhead: { position: [0, 10, 0], fov: 50 },
-      side: { position: [10, 4, 0], fov: 50 },
-      corner: { position: [8, 5, 8], fov: 45 },
-      front: { position: [0, 5, 10], fov: 50 }
-    };
-    return presets[cameraView] || presets.overhead;
-  };
-
-  const cameraPreset = getCameraPreset();
+  const cameraPreset = getCameraPreset(cameraView);
 
   return (
-    <div className={`
-      relative flex-1 bg-gradient-to-br from-blue-50 to-indigo-100 transition-all duration-300
-      ${isPanelExpanded ? 'md:w-2/3' : 'md:w-4/5'}
-    `}>
+    <div className="relative w-full h-full flex-1 bg-gradient-to-br from-blue-50 to-indigo-100 overflow-hidden">
       {/* Header Bar */}
-      <div className="absolute top-0 left-0 right-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-200 p-4">
-        <div className="flex items-center justify-between">
+      <div className="absolute top-0 left-0 right-0 z-10 bg-white/80 backdrop-blur-md border-b rounded-lg border-gray-400 p-3/2">
+        <div className="flex items-center justify-between gap-2">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">
+            <h1 className="text-sm sm:text-base md:text-lg px-3 font-bold text-gray-800">
               {roomConfig.roomName || 'Untitled Room'}
             </h1>
-            <p className="text-sm text-gray-600">
+            <p className="text-[11px] sm:text-xs text-gray-600">
               {benches.length} benches • {benches.length * roomConfig.benchCapacity} capacity
             </p>
           </div>
-          
-          <CameraControls 
+
+          <CameraControls
             cameraView={cameraView}
             onViewChange={setCameraView}
+            mode={isPreview ? 'preview' : 'builder'}
+            autoOrbit={autoOrbit}
+            onToggleOrbit={() => setAutoOrbit((prev) => !prev)}
           />
         </div>
       </div>
@@ -103,27 +131,26 @@ const VisualRoom = ({ roomConfig, benches, onAddBench, onRemoveBench, isPanelExp
         ref={canvasRef}
         shadows
         className="w-full h-full"
-        gl={{ 
+        gl={{
           antialias: true,
-          powerPreference: "high-performance",
-          alpha: true
+          powerPreference: 'high-performance',
+          alpha: true,
         }}
         camera={cameraPreset}
         onCreated={({ gl }) => {
           gl.setClearColor('#f0f9ff');
         }}
       >
+        <CameraRig cameraView={cameraView} />
+
         <ErrorBoundary>
           <Suspense fallback={<FallbackScene />}>
             <RoomEnvironment />
-            
+
             {/* Enhanced Ground */}
-            <EnhancedGround 
-              rows={roomConfig.rows} 
-              cols={roomConfig.cols} 
-            />
-            
-            {/* Benches with error handling */}
+            <EnhancedGround rows={roomConfig.rows} cols={roomConfig.cols} />
+
+            {/* Benches */}
             <group position={[0, 0.1, 0]}>
               {benches.map((bench) => (
                 <BenchEntity
@@ -132,14 +159,15 @@ const VisualRoom = ({ roomConfig, benches, onAddBench, onRemoveBench, isPanelExp
                   rows={roomConfig.rows}
                   cols={roomConfig.cols}
                   onRemove={() => onRemoveBench(bench.id)}
+                  mode={mode}   // ✅ pass preview/builder mode
                 />
               ))}
             </group>
 
             {/* Grid System */}
             <GridSystem rows={roomConfig.rows} cols={roomConfig.cols} />
-            
-            {/* Controls with better defaults */}
+
+            {/* Orbit Controls */}
             <OrbitControls
               enablePan={true}
               enableZoom={true}
@@ -150,20 +178,22 @@ const VisualRoom = ({ roomConfig, benches, onAddBench, onRemoveBench, isPanelExp
               maxPolarAngle={Math.PI / 1.8}
               target={[0, 0, 0]}
               makeDefault
+              autoRotate={autoOrbit}
+              autoRotateSpeed={0.5}
             />
           </Suspense>
         </ErrorBoundary>
       </Canvas>
 
-      {/* Floating Action Button */}
+      {/* Floating Action Button – only in builder */}
       {canAddBench && (
         <div className="absolute bottom-6 right-6 z-10">
           <button
             onClick={onAddBench}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-4 rounded-2xl shadow-2xl font-semibold text-lg transition-all duration-200 hover:shadow-3xl hover:scale-105 flex items-center space-x-3 group"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-5 py-3 rounded-2xl shadow-2xl font-semibold text-sm sm:text-base transition-all duration-200 hover:shadow-3xl hover:scale-105 flex items-center space-x-2 group"
           >
-            <div className="bg-white/20 p-2 rounded-lg group-hover:scale-110 transition-transform">
-              <span className="text-2xl">+</span>
+            <div className="bg-white/20 p-1.5 rounded-lg group-hover:scale-110 transition-transform">
+              <span className="text-xl">+</span>
             </div>
             <span>Add Bench</span>
           </button>
@@ -171,36 +201,35 @@ const VisualRoom = ({ roomConfig, benches, onAddBench, onRemoveBench, isPanelExp
       )}
 
       {/* Grid Status */}
-      <div className="absolute bottom-4 left-4 z-10 bg-black/70 text-white px-4 py-2 rounded-2xl backdrop-blur-sm">
-        <div className="text-sm">
-          Grid: {roomConfig.rows}×{roomConfig.cols} • {benches.length}/{roomConfig.rows * roomConfig.cols} filled
+      <div className="absolute bottom-3 left-3 z-10 bg-black/70 text-white px-3 py-2 rounded-2xl backdrop-blur-sm">
+        <div className="text-[11px]">
+          Grid: {roomConfig.rows}×{roomConfig.cols} • {benches.length}/
+          {roomConfig.rows * roomConfig.cols} filled
         </div>
-        <div className="text-xs text-gray-300 mt-1">
+        <div className="text-[10px] text-gray-300 mt-1">
           Capacity: {benches.length * roomConfig.benchCapacity} people
         </div>
       </div>
 
-      {/* Scene Controls Help */}
-      <div className="absolute top-16 right-4 z-10 bg-black/60 text-white px-3 py-2 rounded-xl backdrop-blur-sm text-xs">
-        <div className="font-medium mb-1">Controls:</div>
-        <div>🖱️ Drag - Rotate</div>
-        <div>🖱️ Scroll - Zoom</div>
-        <div>🖱️ Right Drag - Pan</div>
+      {/* Scene Controls Help – keep small */}
+      <div className="absolute top-25 right-1 z-10 bg-black/60 text-white px-2 py-1.5 rounded-xl backdrop-blur-sm text-[10px]">
+        <div className="font-medium mb-0.5">Controls:</div>
+        <div>Drag - Rotate</div>
+        <div>Scroll - Zoom</div>
+        <div>Right Drag - Pan</div>
       </div>
 
       {/* Empty State */}
-      {!roomConfig.roomName && (
-        <EmptyState />
-      )}
+      {!roomConfig.roomName && <EmptyState />}
 
       {/* Loading State */}
-      {benches.length === 0 && roomConfig.roomName && (
+      {benches.length === 0 && roomConfig.roomName && !isPreview && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-gray-200 text-center">
             <div className="text-4xl mb-3">🎯</div>
             <h3 className="text-lg font-semibold text-gray-800 mb-2">Ready to Build</h3>
             <p className="text-gray-600 text-sm">
-              Click the "Add Bench" button to start placing benches in your room.
+              Click the &quot;Add Bench&quot; button to start placing benches in your room.
             </p>
           </div>
         </div>
@@ -208,6 +237,7 @@ const VisualRoom = ({ roomConfig, benches, onAddBench, onRemoveBench, isPanelExp
     </div>
   );
 };
+
 
 /**
  * Grid system for better spatial awareness
@@ -315,4 +345,4 @@ const EmptyState = () => {
   );
 };
 
-export default VisualRoom;
+export default VisualRoom;  

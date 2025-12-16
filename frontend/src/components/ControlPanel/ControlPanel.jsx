@@ -18,7 +18,8 @@ const ControlPanel = ({
   onRowsColsChange,
   onAddBench,
   onResetScene,
-  onExportLayout,
+  onSaveSession,
+  onExportJSON,
   isExpanded,
   onToggleExpand
 }) => {
@@ -77,9 +78,11 @@ const ControlPanel = ({
         {/* Fixed Action Buttons */}
         <ActionButtons
           onResetScene={onResetScene}
-          onExportLayout={onExportLayout}
+          onSaveSession={onSaveSession}
+          onExportJSON={onExportJSON}
           isExpanded={isExpanded}
         />
+
       </div>
     </div>
   );

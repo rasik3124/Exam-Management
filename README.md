@@ -1,0 +1,1 @@
+Full-stack Exam Seat Allocation System built with React and Django. Supports dataset upload, subject conflict detection, day-wise validation, and backend-driven seat allocation with configurable room priority and rules. Designed with scalable architecture, clean API contracts, and separation of concerns for production-grade performance.
